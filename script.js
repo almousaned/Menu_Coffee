@@ -841,40 +841,84 @@ function toggleTheme() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ACTIVE SECTION DETECTION
-   Uses IntersectionObserver to highlight the correct nav tab
+   NAVIGATION ENGINE — Fully rewritten to fix 4 bugs:
+   
+   BUG 1: Double-smooth-scrolling (CSS + JS both set smooth)
+          FIX: CSS scroll-behavior removed; JS-only via scrollTo()
+   
+   BUG 2: IntersectionObserver fires during programmatic scroll,
+          causing active tab to flicker/change mid-animation
+          FIX: isScrollingToSection flag blocks observer during scroll
+   
+   BUG 3: tab.scrollIntoView() scrolled the entire PAGE, not just
+          the nav track, causing a jarring vertical jump
+          FIX: Replaced with track.scrollTo() targeting tab position
+   
+   BUG 4: Header height read from CSS variable (unreliable) 
+          FIX: Always measure from DOM: header.offsetHeight
 ═══════════════════════════════════════════════════════════════ */
-let sectionObserver = null;
 
-function initSectionObserver() {
-  const sections = document.querySelectorAll('.menu-section');
-  if (!sections.length) return;
-
-  const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 108;
-
-  sectionObserver = new IntersectionObserver(
-    entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          activateTab(entry.target.id);
-        }
-      });
-    },
-    {
-      rootMargin: `-${headerH + 20}px 0px -55% 0px`,
-      threshold: 0
-    }
-  );
-
-  sections.forEach(s => sectionObserver.observe(s));
+/**
+ * Get the actual current sticky header height from the DOM.
+ * Always accurate regardless of screen size or layout changes.
+ */
+function getHeaderHeight() {
+  return document.getElementById('site-header')?.offsetHeight ?? 100;
 }
 
-function activateTab(sectionId) {
+/* ── Flag: prevents section observer from firing during programmatic scroll ── */
+let isScrollingToSection = false;
+let scrollEndTimer = null;
+
+/**
+ * Scroll smoothly to a section by ID.
+ * Locks the section observer during the animation so tabs don't flicker.
+ */
+function scrollToSection(sectionId) {
+  const target = document.getElementById(sectionId);
+  if (!target) return;
+
+  // 1. Immediately mark the correct tab (no waiting for observer)
+  activateTab(sectionId, /* animateNavTrack= */ true);
+
+  // 2. Lock observer so it doesn't override our tab during scroll
+  isScrollingToSection = true;
+  clearTimeout(scrollEndTimer);
+
+  // 3. Calculate exact pixel position accounting for real header height
+  const headerH = getHeaderHeight();
+  const targetTop = target.getBoundingClientRect().top + window.scrollY - headerH - 8;
+
+  window.scrollTo({ top: targetTop, behavior: 'smooth' });
+
+  // 4. Unlock observer after animation finishes (~700ms is safe for any page length)
+  scrollEndTimer = setTimeout(() => {
+    isScrollingToSection = false;
+  }, 700);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACTIVE TAB MANAGEMENT
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Mark one tab as active and scroll it into view within the nav track.
+ * NEVER touches the main page scroll — only the nav track scroll.
+ *
+ * @param {string}  sectionId       - The section ID to activate
+ * @param {boolean} animateNavTrack - Whether to animate the nav track scroll
+ */
+function activateTab(sectionId, animateNavTrack = false) {
+  const track = document.getElementById('cat-nav-track');
+
   document.querySelectorAll('.cat-tab').forEach(tab => {
     if (tab.dataset.target === sectionId) {
       tab.classList.add('is-active');
-      // Scroll tab into view within the nav track
-      tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      // Scroll the TAB into the center of the nav track — not the page
+      if (track) {
+        const tabCenter = tab.offsetLeft - (track.clientWidth / 2) + (tab.offsetWidth / 2);
+        track.scrollTo({ left: tabCenter, behavior: animateNavTrack ? 'smooth' : 'instant' });
+      }
     } else {
       tab.classList.remove('is-active');
     }
@@ -882,12 +926,77 @@ function activateTab(sectionId) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCROLL-TRIGGERED FADE-IN ANIMATIONS
+   ACTIVE SECTION DETECTION ON SCROLL
+   Uses a reliable scroll event instead of IntersectionObserver.
+   IntersectionObserver is great for lazy-loading but unreliable
+   for nav-highlighting because it fires during programmatic scroll.
 ═══════════════════════════════════════════════════════════════ */
-let fadeObserver = null;
 
+/**
+ * Determine which menu section is currently "in view" at the top
+ * of the visible area (just below the sticky header).
+ */
+function getActiveSectionId() {
+  const headerH = getHeaderHeight();
+  // We look for the section whose top has just passed the detection line
+  // Detection line = header bottom + a small buffer
+  const detectionY = window.scrollY + headerH + 24;
+
+  const sections = Array.from(document.querySelectorAll('.menu-section'));
+  let activeId = sections[0]?.id ?? null;
+
+  for (const section of sections) {
+    // offsetTop is relative to the document — no getBoundingClientRect() needed
+    if (section.offsetTop <= detectionY) {
+      activeId = section.id;
+    } else {
+      break; // sections are in DOM order, so we can stop early
+    }
+  }
+  return activeId;
+}
+
+let scrollRafId = null;
+let lastActiveId = null;
+
+/**
+ * Throttle the scroll handler via requestAnimationFrame.
+ * Only re-paints when the active section actually changes.
+ */
+function onWindowScroll() {
+  if (scrollRafId) return;
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = null;
+
+    // Back-to-top button visibility
+    const btn = document.getElementById('back-to-top');
+    if (btn) {
+      btn.classList.toggle('is-visible', window.scrollY > 400);
+    }
+
+    // Skip section detection while programmatic scroll is running
+    if (isScrollingToSection) return;
+
+    const activeId = getActiveSectionId();
+    if (activeId && activeId !== lastActiveId) {
+      lastActiveId = activeId;
+      activateTab(activeId, true);
+    }
+  });
+}
+
+function initScrollListener() {
+  window.addEventListener('scroll', onWindowScroll, { passive: true });
+  // Run once on init to set the correct tab immediately
+  onWindowScroll();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLL-TRIGGERED FADE-IN ANIMATIONS
+   (IntersectionObserver is fine for one-shot animations)
+═══════════════════════════════════════════════════════════════ */
 function initFadeObserver() {
-  fadeObserver = new IntersectionObserver(
+  const fadeObserver = new IntersectionObserver(
     entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -896,54 +1005,42 @@ function initFadeObserver() {
         }
       });
     },
-    { threshold: 0.08 }
+    { threshold: 0.06 }
   );
-
   document.querySelectorAll('.fade-in').forEach(el => fadeObserver.observe(el));
 }
 
 /* ═══════════════════════════════════════════════════════════════
    BACK-TO-TOP BUTTON
+   (visibility handled inside onWindowScroll above)
 ═══════════════════════════════════════════════════════════════ */
 function initBackToTop() {
-  const btn = document.getElementById('back-to-top');
-  if (!btn) return;
-
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 400) {
-      btn.classList.add('is-visible');
-    } else {
-      btn.classList.remove('is-visible');
-    }
-  }, { passive: true });
-
-  btn.addEventListener('click', () => {
+  document.getElementById('back-to-top')?.addEventListener('click', () => {
+    isScrollingToSection = true; // don't change active tab while scrolling up
+    clearTimeout(scrollEndTimer);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollEndTimer = setTimeout(() => { isScrollingToSection = false; }, 700);
   });
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   CATEGORY NAV SCROLL CONTROLS
+   CATEGORY NAV HORIZONTAL SCROLL CONTROLS
 ═══════════════════════════════════════════════════════════════ */
 function initNavScrollControls() {
-  const track  = document.getElementById('cat-nav-track');
-  const btnL   = document.getElementById('nav-left');
-  const btnR   = document.getElementById('nav-right');
+  const track = document.getElementById('cat-nav-track');
+  const btnL  = document.getElementById('nav-left');
+  const btnR  = document.getElementById('nav-right');
   if (!track || !btnL || !btnR) return;
 
-  const SCROLL_AMT = 200;
+  const SCROLL_AMT = 180;
 
-  btnL.addEventListener('click', () => {
-    track.scrollBy({ left: -SCROLL_AMT, behavior: 'smooth' });
-  });
-  btnR.addEventListener('click', () => {
-    track.scrollBy({ left: SCROLL_AMT, behavior: 'smooth' });
-  });
+  btnL.addEventListener('click', () => track.scrollBy({ left: -SCROLL_AMT, behavior: 'smooth' }));
+  btnR.addEventListener('click', () => track.scrollBy({ left:  SCROLL_AMT, behavior: 'smooth' }));
 
-  // Hide arrows if not needed
   const updateArrows = () => {
-    btnL.style.opacity = track.scrollLeft > 0 ? '1' : '0.3';
-    btnR.style.opacity = (track.scrollLeft + track.clientWidth) < track.scrollWidth - 4 ? '1' : '0.3';
+    btnL.style.opacity = track.scrollLeft > 2 ? '1' : '0.3';
+    const atEnd = (track.scrollLeft + track.clientWidth) >= (track.scrollWidth - 4);
+    btnR.style.opacity = atEnd ? '0.3' : '1';
   };
 
   track.addEventListener('scroll', updateArrows, { passive: true });
@@ -952,7 +1049,7 @@ function initNavScrollControls() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SMOOTH SCROLL TO SECTION ON TAB CLICK
+   TAB CLICK → SCROLL TO SECTION
 ═══════════════════════════════════════════════════════════════ */
 function initTabClicks() {
   const track = document.getElementById('cat-nav-track');
@@ -960,30 +1057,27 @@ function initTabClicks() {
 
   track.addEventListener('click', e => {
     const tab = e.target.closest('.cat-tab');
-    if (!tab) return;
+    if (!tab || !tab.dataset.target) return;
+    scrollToSection(tab.dataset.target);
+  });
 
-    const target = document.getElementById(tab.dataset.target);
-    if (!target) return;
-
-    const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 108;
-    const top = target.getBoundingClientRect().top + window.scrollY - headerH - 12;
-    window.scrollTo({ top, behavior: 'smooth' });
+  // Keyboard: Enter or Space triggers click
+  track.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.target.closest('.cat-tab')?.click();
+    }
   });
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   HERO CTA SMOOTH SCROLL
+   HERO CTA → SCROLL TO FIRST MENU SECTION
 ═══════════════════════════════════════════════════════════════ */
 function initHeroCta() {
-  const cta = document.getElementById('hero-cta');
-  if (!cta) return;
-  cta.addEventListener('click', e => {
+  document.getElementById('hero-cta')?.addEventListener('click', e => {
     e.preventDefault();
-    const first = document.querySelector('.menu-section');
-    if (!first) return;
-    const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 108;
-    const top = first.getBoundingClientRect().top + window.scrollY - headerH - 12;
-    window.scrollTo({ top, behavior: 'smooth' });
+    const firstSection = document.querySelector('.menu-section');
+    if (firstSection) scrollToSection(firstSection.id);
   });
 }
 
@@ -992,51 +1086,39 @@ function initHeroCta() {
 ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
 
-  /* 1. Theme */
+  /* 1. Apply saved theme */
   initTheme();
-  document.getElementById('theme-toggle')
-    ?.addEventListener('click', toggleTheme);
+  document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
 
-  /* 2. Render nav tabs */
+  /* 2. Build nav tabs */
   renderNavTabs();
 
-  /* 3. Render full menu */
+  /* 3. Render all menu sections into the DOM */
   renderMenu();
 
-  /* 4. Search */
+  /* 4. Wire up search */
   const searchInput = document.getElementById('search-input');
-  const searchClear = document.getElementById('search-clear');
-  const bannerClear = document.getElementById('search-banner-clear');
-
   searchInput?.addEventListener('input', e => {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => performSearch(e.target.value), 200);
+    searchTimeout = setTimeout(() => performSearch(e.target.value), 180);
   });
+  document.getElementById('search-clear')?.addEventListener('click', clearSearch);
+  document.getElementById('search-banner-clear')?.addEventListener('click', clearSearch);
 
-  searchClear?.addEventListener('click', clearSearch);
-  bannerClear?.addEventListener('click', clearSearch);
-
-  /* 5. Observers */
-  initSectionObserver();
+  /* 5. Fade-in animations (IntersectionObserver — safe for one-shot use) */
   initFadeObserver();
 
-  /* 6. Back to top */
+  /* 6. Scroll listener — drives active tab + back-to-top */
+  initScrollListener();
+
+  /* 7. Back to top button */
   initBackToTop();
 
-  /* 7. Nav controls */
+  /* 8. Nav controls + tab clicks */
   initNavScrollControls();
   initTabClicks();
+
+  /* 9. Hero CTA */
   initHeroCta();
-
-  /* 8. Activate first tab immediately */
-  const firstTab = document.querySelector('.cat-tab');
-  if (firstTab) firstTab.classList.add('is-active');
-
-  /* 9. Keyboard accessibility: Enter/Space on tab = click */
-  document.getElementById('cat-nav-track')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.target.closest('.cat-tab')?.click();
-    }
-  });
 
 });
