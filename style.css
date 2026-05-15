@@ -104,8 +104,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--header-h) + 8px);
+  /* scroll-behavior managed exclusively by JS to avoid double-smoothing */
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
 }
@@ -322,7 +321,6 @@ h1, h2, h3 { line-height: 1.1; }
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  scroll-behavior: smooth;
   flex: 1;
 }
 .cat-nav__track::-webkit-scrollbar { display: none; }
