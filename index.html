@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE PACHA COFFEE — Menu</title>
+  <meta name="description" content="Découvrez notre menu — cafés, viennoiseries, desserts, boissons et plats salés." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=Raleway:wght@300;400;500;600&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       TOP DECORATIVE BAR
+  ═══════════════════════════════════════════ -->
+  <div class="deco-bar deco-bar--top" aria-hidden="true">
+    <div class="dot-row"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       STICKY HEADER & NAV
+  ═══════════════════════════════════════════ -->
+  <header class="site-header" id="site-header">
+
+    <!-- Brand + Search + Controls -->
+    <div class="header-top">
+      <a href="#hero" class="brand" aria-label="CUPFFEE — Accueil">
+        <span class="brand-cup">THE PACHA</span><span class="brand-ffee">COFFEE</span>
+      </a>
+
+      <div class="header-search">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
+          <line x1="16.5" y1="16.5" x2="22" y2="22" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <input
+          type="search"
+          id="search-input"
+          class="search-input"
+          placeholder="Rechercher un article…"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Rechercher dans le menu"
+        />
+        <button class="search-clear" id="search-clear" aria-label="Effacer la recherche" hidden>✕</button>
+      </div>
+
+      <div class="header-controls">
+        <button id="theme-toggle" class="ctrl-btn" aria-label="Changer le thème" title="Mode sombre / clair">
+          <svg id="icon-moon" viewBox="0 0 24 24" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/></svg>
+          <svg id="icon-sun"  viewBox="0 0 24 24" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5" fill="currentColor"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Category Navigation Tabs -->
+    <nav class="cat-nav" id="cat-nav" aria-label="Catégories du menu">
+      <button class="cat-nav__arrow cat-nav__arrow--left" id="nav-left" aria-label="Défiler à gauche">‹</button>
+      <div class="cat-nav__track" id="cat-nav-track">
+        <!-- Populated by script.js -->
+      </div>
+      <button class="cat-nav__arrow cat-nav__arrow--right" id="nav-right" aria-label="Défiler à droite">›</button>
+    </nav>
+
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       HERO SECTION
+  ═══════════════════════════════════════════ -->
+  <section class="hero" id="hero" aria-label="Bienvenue chez THE PACHA COFFEE">
+    <div class="hero__bg" aria-hidden="true"></div>
+    <div class="hero__content">
+      <p class="hero__eyebrow">Bienvenue chez</p>
+      <h1 class="hero__brand">
+        <span class="hero__cup">THE </span><span class="hero__ffee">PACHA</span>
+      </h1>
+      <div class="hero__divider" aria-hidden="true">
+        <span class="hero__line"></span>
+        <svg class="hero__diamond" viewBox="0 0 24 24" width="20" height="20">
+          <polygon points="12,2 22,12 12,22 2,12" fill="currentColor"/>
+        </svg>
+        <span class="hero__line"></span>
+      </div>
+      <p class="hero__tagline">Café &amp; Restauration · Tunisia</p>
+      <a href="#menu-container" class="hero__cta" id="hero-cta">
+        Voir le Menu
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="2" fill="none"/>
+        </svg>
+      </a>
+    </div>
+    <div class="hero__scroll-hint" aria-hidden="true">
+      <div class="hero__scroll-dot"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       SEARCH FEEDBACK BAR
+  ═══════════════════════════════════════════ -->
+  <div class="search-banner" id="search-banner" hidden aria-live="polite">
+    <span>Résultats pour : <strong id="search-term-display"></strong></span>
+    <span class="search-count" id="search-count"></span>
+    <button class="search-banner__clear" id="search-banner-clear" aria-label="Effacer">✕ Effacer</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN MENU CONTENT
+  ═══════════════════════════════════════════ -->
+  <main class="menu-container" id="menu-container" aria-label="Menu complet">
+    <!-- All menu sections are injected here by script.js -->
+  </main>
+
+  <!-- ═══════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════ -->
+  <footer class="site-footer" aria-label="Pied de page">
+    <div class="footer__inner">
+
+      <div class="footer__brand-wrap" aria-hidden="true">
+        <span class="footer__bon">Bon</span>
+        <span class="footer__appetit">Appétit</span>
+      </div>
+
+      <p class="footer__tagline">Merci de votre visite &nbsp;·&nbsp; شكراً لزيارتكم</p>
+
+      <div class="footer__divider" aria-hidden="true"></div>
+
+      <div class="footer__info">
+        <span>© 2025 CUPFFEE</span>
+        <span class="footer__dot" aria-hidden="true">·</span>
+        <span>Tous droits réservés</span>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════
+       BOTTOM DECORATIVE BAR
+  ═══════════════════════════════════════════ -->
+  <div class="deco-bar deco-bar--bottom" aria-hidden="true">
+    <div class="triangle-row"></div>
+  </div>
+
+  <!-- Back-to-Top Button -->
+  <button class="back-to-top" id="back-to-top" aria-label="Retour en haut">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <script src="script.js"></script>
+</body>
+</html>
